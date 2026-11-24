@@ -41,6 +41,7 @@ const detailPage = `<div data-pss-student-assignment-scores><table class="grid">
 function browser(options = {}) {
   let selected = options.selected ?? "11";
   let pendingStudent;
+  let pendingOverview = false;
   let authed = !options.loggedOut;
   let url;
   let dom;
@@ -57,7 +58,13 @@ function browser(options = {}) {
         new URL("home_school_access_disabled.html", config.home).href,
         guardian("<h1>Portal Closed for PowerSchool Updating</h1>", selected),
       );
-    load(config.home, guardian(options.overviewHtml ?? overview, selected));
+    load(
+      config.home,
+      guardian(
+        pendingOverview ? "" : (options.overviewHtml ?? overview),
+        selected,
+      ),
+    );
   };
   return {
     calls,
@@ -100,6 +107,10 @@ function browser(options = {}) {
       if (pendingStudent) {
         selected = pendingStudent;
         pendingStudent = null;
+        pendingOverview = options.delayedOverview;
+        home();
+      } else if (pendingOverview) {
+        pendingOverview = false;
         home();
       }
     },
@@ -182,7 +193,11 @@ test("school closure allows login and student listing but stops reads for the cl
 });
 
 test("a closed school does not prevent switching to an open school or mislabel stale data", async (t) => {
-  const page = browser({ closedStudent: "11", delayedSwitch: true });
+  const page = browser({
+    closedStudent: "11",
+    delayedSwitch: true,
+    delayedOverview: true,
+  });
   t.after(page.close);
   assert.equal(
     (await run(page, "grades", { student: "22" }, config))[0].studentId,
