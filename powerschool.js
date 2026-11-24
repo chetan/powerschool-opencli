@@ -61,7 +61,14 @@ for (const command of [
     name: "grades",
     access: "write",
     description: "List PowerSchool's overall class grades by reporting term",
-    args: [student, term, classFilter],
+    args: [
+      student,
+      term,
+      {
+        ...classFilter,
+        help: "Class ID or case-insensitive part of a course name",
+      },
+    ],
     columns: [
       "studentId",
       "classId",

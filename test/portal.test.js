@@ -374,6 +374,36 @@ test("class metadata and term grades align across header spans and preserve miss
   assert.equal(page.calls.filter(([op]) => op === "click").length, 1);
 });
 
+test("grades filter by exact class ID or case-insensitive course substring", async (t) => {
+  const courseRows = [
+    ["3001", "LANGUAGE ARTS"],
+    ["3002", "Applied Math"],
+    ["3003", "Math Lab 3002"],
+  ]
+    .map(
+      ([id, name]) =>
+        `<tr><td>${name}</td><td><a href="${detail.replace("3001", id)}">A</a></td><td>--</td></tr>`,
+    )
+    .join("");
+  const page = browser({
+    overviewHtml: `<table id="tblgrades"><tr><th>Course</th><th>Q1</th><th>Q2</th></tr>${courseRows}</table>`,
+  });
+  t.after(page.close);
+  const ids = async (filter) =>
+    (await run(page, "grades", { class: filter, term: "Q1" }, config)).map(
+      ({ classId }) => classId,
+    );
+  assert.deepEqual(await ids("lang"), ["3001"]);
+  assert.deepEqual(await ids(" MATH "), ["3002", "3003"]);
+  assert.deepEqual(await ids("3002"), ["3002"]);
+  await assert.rejects(ids("music"), /No class matched/);
+  await assert.rejects(ids(" "), /Provide a class name or ID/);
+  await assert.rejects(
+    run(page, "assignments", { class: "lang", term: "Q1" }, config),
+    /class ID does not identify one class/,
+  );
+});
+
 test("assignment scores follow the full portal link and distinguish zero and ungraded", async (t) => {
   const page = browser();
   t.after(page.close);
