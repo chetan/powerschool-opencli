@@ -21,16 +21,18 @@ Replace the example `POWERSCHOOL_URL` with your district's HTTPS sign-in URL. Se
 
 ```sh
 opencli powerschool students
-opencli powerschool classes --student STUDENT_ID -f table
-opencli powerschool grades --student STUDENT_ID
-opencli powerschool grades --student STUDENT_ID --term Q1
-opencli powerschool grades --student STUDENT_ID --class CLASS_ID
-opencli powerschool assignments CLASS_ID --student STUDENT_ID --term Q1
+opencli powerschool classes --student alex -f table
+opencli powerschool grades --student alex
+opencli powerschool grades --student alex --term Q1
+opencli powerschool grades --student "Alex Example" --class CLASS_ID
+opencli powerschool assignments CLASS_ID --student alex --term Q1
 ```
 
 - `classes` shows courses, periods, teachers, teacher email and room when shown, and the attendance totals from the overview.
 - `grades` shows the overall grade PowerSchool reports for each class and term. It does not recalculate grades or GPA. A blank grade is `null`, not zero. Use a row with `hasDetails: true` to find a class and term with an assignment detail link.
 - `assignments` follows the portal's grade-detail link. It returns assignment names, due dates, categories, points, percentages, grades, and flags when shown in the table. If a class has links for several terms, specify `--term`.
+
+`--student` accepts a case-insensitive full name, a unique single name (such as a first name), or an ID from `students`. Quote names with spaces. If a name matches more than one student, use the full name or ID.
 
 Without `--student`, commands use the student currently selected in PowerSchool. A command with `--student` can change that selection in the browser session, so run PowerSchool commands sequentially. If one school closes its portal, you can still use `--student` to select a linked student at an open school. Reads for the closed school report an error, not empty grades. The `portalClosed` field from `login` describes the currently selected student's school.
 

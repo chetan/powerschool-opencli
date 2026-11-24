@@ -9,9 +9,13 @@ const detail =
 const signIn = `<form method="post" action="/guardian/home.html">
   <input id="fieldAccount" value="example"><input id="fieldPassword" type="password" value="fixture">
   <button id="btn-enter-sign-in">Sign in</button></form>`;
-const guardian = (body, id = "11") => `<ul id="students-list">
-  <li class="${id === "11" ? "selected" : ""}"><a href="javascript:switchStudent(11);">Student One</a></li>
-  <li class="${id === "22" ? "selected" : ""}"><a href="javascript:switchStudent('22');">Student Two</a></li>
+const guardian = (
+  body,
+  id = "11",
+  names = ["Student One", "Student Two"],
+) => `<ul id="students-list">
+  <li class="${id === "11" ? "selected" : ""}"><a href="javascript:switchStudent(11);">${names[0]}</a></li>
+  <li class="${id === "22" ? "selected" : ""}"><a href="javascript:switchStudent('22');">${names[1]}</a></li>
 </ul><main id="content-main">${body}</main>`;
 const overview = `<table id="tblgrades">
   <tr><th rowspan="2">Exp</th><th colspan="2">This Week</th><th rowspan="2">Course</th>
@@ -56,13 +60,18 @@ function browser(options = {}) {
     if (options.closed || options.closedStudent === selected)
       return load(
         new URL("home_school_access_disabled.html", config.home).href,
-        guardian("<h1>Portal Closed for PowerSchool Updating</h1>", selected),
+        guardian(
+          "<h1>Portal Closed for PowerSchool Updating</h1>",
+          selected,
+          options.names,
+        ),
       );
     load(
       config.home,
       guardian(
         pendingOverview ? "" : (options.overviewHtml ?? overview),
         selected,
+        options.names,
       ),
     );
   };
@@ -75,7 +84,7 @@ function browser(options = {}) {
         const rendered = options.detailHtml ?? detailPage;
         return load(
           options.detailUrl ?? next,
-          guardian(rendered, options.detailStudent ?? selected),
+          guardian(rendered, options.detailStudent ?? selected, options.names),
         );
       }
       home();
@@ -190,6 +199,53 @@ test("school closure allows login and student listing but stops reads for the cl
   assert.ok(
     page.calls.every(([op, url]) => op === "goto" && url === config.home),
   );
+});
+
+test("classes, grades, and assignments accept a case-insensitive student name or ID", async (t) => {
+  const page = browser({ names: ["Sam Example", "Example, Alex"] });
+  t.after(page.close);
+  assert.equal(
+    (await run(page, "classes", { student: "alex" }, config))[0].studentId,
+    "22",
+  );
+  assert.equal(
+    (await run(page, "grades", { student: " ALEX  EXAMPLE " }, config))[0]
+      .studentId,
+    "22",
+  );
+  assert.equal(
+    (
+      await run(
+        page,
+        "assignments",
+        { student: "example, alex", class: "3001" },
+        config,
+      )
+    )[0].studentId,
+    "22",
+  );
+  assert.equal(
+    (await run(page, "classes", { student: "11" }, config))[0].studentId,
+    "11",
+  );
+});
+
+test("ambiguous or unknown names do not switch the selected student", async (t) => {
+  const page = browser({ names: ["Alex", "Example, Alex"] });
+  t.after(page.close);
+  await assert.rejects(
+    run(page, "grades", { student: "alex" }, config),
+    /more than one student/,
+  );
+  await assert.rejects(
+    run(page, "grades", { student: "ale" }, config),
+    /No student with that name or ID/,
+  );
+  await assert.rejects(
+    run(page, "grades", { student: " " }, config),
+    /Provide a student name or ID/,
+  );
+  assert.equal(page.calls.filter(([op]) => op === "click").length, 0);
 });
 
 test("a closed school does not prevent switching to an open school or mislabel stale data", async (t) => {
@@ -313,7 +369,7 @@ test("class metadata and term grades align across header spans and preserve miss
   );
   await assert.rejects(
     run(page, "classes", { student: "999" }, config),
-    /not in this account/,
+    /No student with that name or ID/,
   );
   assert.equal(page.calls.filter(([op]) => op === "click").length, 1);
 });

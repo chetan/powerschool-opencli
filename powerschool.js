@@ -11,7 +11,7 @@ try {
 const student = {
   name: "student",
   type: "string",
-  help: "Student ID from the students command (default: selected student)",
+  help: "Student name or ID from the students command (default: selected student)",
 };
 const term = {
   name: "term",
