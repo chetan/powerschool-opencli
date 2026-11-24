@@ -6,6 +6,8 @@ List students, classes, reporting-term grades, and assignment scores from a Powe
 
 Use OpenCLI 2.0.3 or later with its browser bridge connected to the Chrome profile where you saved your PowerSchool sign-in.
 
+From the root of this repository, run:
+
 ```sh
 opencli plugin install "file://$PWD"
 export POWERSCHOOL_URL='https://powerschool.example.org/public/'
