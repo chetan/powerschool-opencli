@@ -28,12 +28,13 @@ opencli powerschool grades --student alex
 opencli powerschool grades --student alex --term Q1
 opencli powerschool grades --student alex --class math
 opencli powerschool grades --student "Alex Example" --class CLASS_ID
+opencli powerschool assignments math --student alex --term Q1
 opencli powerschool assignments CLASS_ID --student alex --term Q1
 ```
 
 - `classes` shows courses, periods, teachers, teacher email and room when shown, and the attendance totals from the overview.
 - `grades` shows the overall grade PowerSchool reports for each class and term. `--class` accepts an exact class ID or a case-insensitive substring of a course name. A name filter returns all matching classes. It does not recalculate grades or GPA. A blank grade is `null`, not zero. Use a row with `hasDetails: true` to find a class and term with an assignment detail link.
-- `assignments` follows the portal's grade-detail link. It returns assignment names, due dates, categories, points, percentages, grades, and flags when shown in the table. If a class has links for several terms, specify `--term`.
+- `assignments` accepts the same class ID or name substring as `grades`. It returns assignment names, due dates, categories, points, percentages, grades, and flags for each matching class with a published grade-detail link. If a matching class has links for several terms, specify `--term`.
 
 `--student` accepts a case-insensitive full name, a unique single name (such as a first name), or an ID from `students`. Quote names with spaces. If a name matches more than one student, use the full name or ID.
 

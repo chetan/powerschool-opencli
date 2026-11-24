@@ -21,7 +21,7 @@ const term = {
 const classFilter = {
   name: "class",
   type: "string",
-  help: "Class ID from classes or grades",
+  help: "Class ID or case-insensitive part of a course name",
 };
 
 for (const command of [
@@ -61,14 +61,7 @@ for (const command of [
     name: "grades",
     access: "write",
     description: "List PowerSchool's overall class grades by reporting term",
-    args: [
-      student,
-      term,
-      {
-        ...classFilter,
-        help: "Class ID or case-insensitive part of a course name",
-      },
-    ],
+    args: [student, term, classFilter],
     columns: [
       "studentId",
       "classId",
@@ -83,8 +76,7 @@ for (const command of [
   {
     name: "assignments",
     access: "write",
-    description:
-      "List the assignment scores shown for one PowerSchool class and term",
+    description: "List PowerSchool assignment scores for matching classes",
     args: [{ ...classFilter, positional: true, required: true }, student, term],
     columns: [
       "studentId",

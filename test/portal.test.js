@@ -374,16 +374,21 @@ test("class metadata and term grades align across header spans and preserve miss
   assert.equal(page.calls.filter(([op]) => op === "click").length, 1);
 });
 
-test("grades filter by exact class ID or case-insensitive course substring", async (t) => {
+test("grades and assignments filter by exact ID or case-insensitive course substring", async (t) => {
   const courseRows = [
     ["3001", "LANGUAGE ARTS"],
     ["3002", "Applied Math"],
     ["3003", "Math Lab 3002"],
+    ["3004", "Math Workshop"],
   ]
-    .map(
-      ([id, name]) =>
-        `<tr><td>${name}</td><td><a href="${detail.replace("3001", id)}">A</a></td><td>--</td></tr>`,
-    )
+    .map(([id, name]) => {
+      const url = detail.replace("3001", id);
+      const q1 = id === "3004" ? "--" : `<a href="${url}">A</a>`;
+      const q2 = ["3002", "3004"].includes(id)
+        ? `<a href="${url.replace("fg=Q1", "fg=Q2")}">A</a>`
+        : "--";
+      return `<tr><td>${name}</td><td>${q1}</td><td>${q2}</td></tr>`;
+    })
     .join("");
   const page = browser({
     overviewHtml: `<table id="tblgrades"><tr><th>Course</th><th>Q1</th><th>Q2</th></tr>${courseRows}</table>`,
@@ -394,14 +399,30 @@ test("grades filter by exact class ID or case-insensitive course substring", asy
       ({ classId }) => classId,
     );
   assert.deepEqual(await ids("lang"), ["3001"]);
-  assert.deepEqual(await ids(" MATH "), ["3002", "3003"]);
+  assert.deepEqual(await ids(" MATH "), ["3002", "3003", "3004"]);
   assert.deepEqual(await ids("3002"), ["3002"]);
   await assert.rejects(ids("music"), /No class matched/);
   await assert.rejects(ids(" "), /Provide a class name or ID/);
-  await assert.rejects(
-    run(page, "assignments", { class: "lang", term: "Q1" }, config),
-    /class ID does not identify one class/,
-  );
+  const assignments = async (filter, term) =>
+    (await run(page, "assignments", { class: filter, term }, config)).map(
+      ({ classId }) => classId,
+    );
+  const detailVisits = () =>
+    page.calls.filter(
+      ([action, url]) => action === "goto" && url.includes("/scores.html?"),
+    ).length;
+  await assert.rejects(assignments("math"), /details for more than one term/);
+  await assert.rejects(assignments("music", "Q1"), /No class matched/);
+  assert.equal(detailVisits(), 0);
+  assert.deepEqual(await assignments("lang"), ["3001", "3001"]);
+  assert.deepEqual(await assignments(" MATH ", "q1"), [
+    "3002",
+    "3002",
+    "3003",
+    "3003",
+  ]);
+  assert.deepEqual(await assignments("3002", "Q1"), ["3002", "3002"]);
+  assert.equal(detailVisits(), 4);
 });
 
 test("assignment scores follow the full portal link and distinguish zero and ungraded", async (t) => {
