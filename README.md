@@ -40,4 +40,8 @@ PowerSchool layouts can vary by district. Tests use synthetic HTML only.
 
 ## Development
 
-Use Node.js 24 or later. From this directory, run `npm ci`, `npm run check` (syntax, formatting, and tests), or `npm run format`. The plugin ships as JavaScript; there is no bundle to build. Do not enable traces or save command output unless you have a private place for student records.
+For Bun development (tested with Bun 1.4.5), run `bun install --frozen-lockfile --ignore-scripts` and `bun test`. For npm, use Node.js 24 or later and run `npm ci --ignore-scripts` and `npm run check` (syntax, formatting, and tests). Use `npm run format` to format the source.
+
+Keep `package-lock.json` as the source for both lockfiles. When dependencies change, update the npm lock first. Copy `package.json` and `package-lock.json` to a temporary directory without a `bun.lock`, run `bun pm migrate` there, and copy the resulting `bun.lock` back. Bun imports the npm lock but cannot export one.
+
+The plugin ships as JavaScript; there is no bundle to build. Do not enable traces or save command output unless you have a private place for student records.
