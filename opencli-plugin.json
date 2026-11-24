@@ -1,0 +1,6 @@
+{
+  "name": "powerschool-opencli",
+  "version": "0.1.0",
+  "description": "Read the PowerSchool guardian portal through Chrome",
+  "opencli": ">=2.0.3"
+}

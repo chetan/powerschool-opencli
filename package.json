@@ -1,0 +1,20 @@
+{
+  "name": "opencli-plugin-powerschool-opencli",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "node --check powerschool.js && node --check lib/portal.js && node --check lib/inspect.js",
+    "format": "prettier --write .",
+    "check": "npm run build && prettier --check . && npm test",
+    "test": "node --test"
+  },
+  "peerDependencies": {
+    "@jackwener/opencli": ">=2.0.3"
+  },
+  "devDependencies": {
+    "@jackwener/opencli": "2.0.3",
+    "jsdom": "31.0.1",
+    "prettier": "3.10.1"
+  }
+}
