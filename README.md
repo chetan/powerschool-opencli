@@ -32,7 +32,7 @@ opencli powerschool assignments CLASS_ID --student STUDENT_ID --term Q1
 - `grades` shows the overall grade PowerSchool reports for each class and term. It does not recalculate grades or GPA. A blank grade is `null`, not zero. Use a row with `hasDetails: true` to find a class and term with an assignment detail link.
 - `assignments` follows the portal's grade-detail link. It returns assignment names, due dates, categories, points, percentages, grades, and flags when shown in the table. If a class has links for several terms, specify `--term`.
 
-Without `--student`, commands use the student currently selected in PowerSchool. A command with `--student` can change that selection in the browser session, so run PowerSchool commands sequentially. A closed district portal may still show the student list. In that case, class and grade reads stop with an error rather than returning empty records.
+Without `--student`, commands use the student currently selected in PowerSchool. A command with `--student` can change that selection in the browser session, so run PowerSchool commands sequentially. If one school closes its portal, you can still use `--student` to select a linked student at an open school. Reads for the closed school report an error, not empty grades. The `portalClosed` field from `login` describes the currently selected student's school.
 
 PowerSchool layouts can vary by district. Tests use synthetic HTML only.
 

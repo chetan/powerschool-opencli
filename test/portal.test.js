@@ -22,6 +22,16 @@ const overview = `<table id="tblgrades">
   <td><a href="${detail}">A-<br>91.5</a></td><td>--</td><td>0</td><td>2</td></tr>
   <tr><td colspan="8">Attendance Totals</td></tr>
 </table>`;
+const detailWithoutDates = "scores.html?frn=3001&fg=Q2&schoolid=2";
+const quickLookup = `<div id="quickLookup"><table class="linkDescList grid">
+  <tr><th>Exp</th><th>Course</th><th>Q1</th><th>Q2</th><th>F1</th><th>Absences</th><th>Tardies</th></tr>
+  <tr class="center"><td>3(A)</td><td>History<br>
+    <a class="button mini dialogM" href="teacherinfo.html?frn=8000"></a>
+    <a href="mailto:teacher@example.org">Email A. Example</a><span>- Rm: 34B</span></td>
+    <td><a href="${detail}">93<br>93</a></td>
+    <td><a href="${detailWithoutDates}">[ i ]</a></td><td>Not Available</td><td>0</td><td>2</td></tr>
+  <tr><td colspan="5">Attendance Totals</td><td>0</td><td>2</td></tr>
+</table><table class="center grid"><tr><th>Attendance By Day</th></tr></table></div>`;
 const detailPage = `<div data-pss-student-assignment-scores><table class="grid">
   <tr><th>Due Date</th><th>Category</th><th>Assignment</th><th>Flags</th><th>Score</th><th>%</th><th>Grade</th></tr>
   <tr><td>10/3/2026</td><td>Projects</td><td><a>Map</a></td><td><img alt="Late"></td><td>0/20</td><td>0%</td><td>F</td></tr>
@@ -30,6 +40,7 @@ const detailPage = `<div data-pss-student-assignment-scores><table class="grid">
 
 function browser(options = {}) {
   let selected = options.selected ?? "11";
+  let pendingStudent;
   let authed = !options.loggedOut;
   let url;
   let dom;
@@ -41,7 +52,7 @@ function browser(options = {}) {
   };
   const home = () => {
     if (!authed) return load(config.login, options.signInHtml ?? signIn);
-    if (options.closed)
+    if (options.closed || options.closedStudent === selected)
       return load(
         new URL("home_school_access_disabled.html", config.home).href,
         guardian("<h1>Portal Closed for PowerSchool Updating</h1>", selected),
@@ -76,12 +87,22 @@ function browser(options = {}) {
         authed = !options.rejected;
         home();
       } else if (!options.switchFails) {
-        selected = link.getAttribute("href").match(/\d+/)[0];
-        home();
+        pendingStudent = link.getAttribute("href").match(/\d+/)[0];
+        if (!options.delayedSwitch) {
+          selected = pendingStudent;
+          pendingStudent = null;
+          home();
+        }
       }
     },
     wait: async () => {},
-    sleep: async () => {},
+    sleep: async () => {
+      if (pendingStudent) {
+        selected = pendingStudent;
+        pendingStudent = null;
+        home();
+      }
+    },
   };
 }
 
@@ -144,20 +165,92 @@ test("missing autofill, cross-origin forms and rejected sign-ins fail without re
   }
 });
 
-test("district closure allows login and student listing but stops other portal reads", async (t) => {
+test("school closure allows login and student listing but stops reads for the closed school", async (t) => {
   const page = browser({ closed: true });
   t.after(page.close);
   assert.equal((await run(page, "login", {}, config))[0].portalClosed, true);
   assert.equal((await run(page, "students", {}, config)).length, 2);
   for (const command of ["classes", "grades", "assignments"]) {
     await assert.rejects(
-      run(page, command, { student: "22", class: "3001" }, config),
-      /district has closed/,
+      run(page, command, { student: "11", class: "3001" }, config),
+      /closed for the selected student's school/,
     );
   }
   assert.ok(
     page.calls.every(([op, url]) => op === "goto" && url === config.home),
   );
+});
+
+test("a closed school does not prevent switching to an open school or mislabel stale data", async (t) => {
+  const page = browser({ closedStudent: "11", delayedSwitch: true });
+  t.after(page.close);
+  assert.equal(
+    (await run(page, "grades", { student: "22" }, config))[0].studentId,
+    "22",
+  );
+  await assert.rejects(
+    run(page, "grades", { student: "11" }, config),
+    /closed for the selected student's school/,
+  );
+  assert.equal(page.calls.filter(([op]) => op === "click").length, 2);
+});
+
+test("quick lookup accepts numeric grades and ungraded terms with detail links", async (t) => {
+  const page = browser({
+    overviewHtml: quickLookup,
+    detailHtml: "<p>No Assignments found.</p>",
+  });
+  t.after(page.close);
+  const classes = await run(page, "classes", {}, config);
+  assert.equal(classes.length, 1);
+  assert.equal(classes[0].teacher, "A. Example");
+  assert.equal(classes[0].room, "34B");
+  const grades = await run(page, "grades", {}, config);
+  assert.deepEqual(
+    grades.map(({ term, display, letter, percent, hasDetails }) => [
+      term,
+      display,
+      letter,
+      percent,
+      hasDetails,
+    ]),
+    [
+      ["Q1", "93 93", null, 93, true],
+      ["Q2", null, null, null, true],
+      ["F1", null, null, null, false],
+    ],
+  );
+  assert.deepEqual(
+    await run(page, "assignments", { class: "3001", term: "Q2" }, config),
+    [],
+  );
+  assert.deepEqual(page.calls.at(-1), [
+    "goto",
+    new URL(detailWithoutDates, config.home).href,
+  ]);
+});
+
+test("assignment flag groups only report active indicators", async (t) => {
+  const detailHtml = `<div data-pss-student-assignment-scores><table id="scoreTable">
+    <tr><th>Due Date</th><th>Category</th><th>Assignment</th><th colspan="3">Flags</th><th>Score</th><th>%</th><th>Grade</th></tr>
+    <tr><td>10/3/2026</td><td>Projects</td><td>Map</td>
+      <td><span class="screen_readers_only">collected</span></td>
+      <td><span class="screen_readers_only">late</span><div class="ps-icon" role="presentation"></div></td>
+      <td><span class="screen_readers_only">missing</span><div class="ps-icon ng-hide"></div></td>
+      <td>--/10</td><td></td><td></td></tr>
+  </table></div>`;
+  const page = browser({ detailHtml });
+  t.after(page.close);
+  const [row] = await run(
+    page,
+    "assignments",
+    { class: "3001", term: "Q1" },
+    config,
+  );
+  assert.deepEqual(row.flags, ["late"]);
+  assert.equal(row.score, "--/10");
+  assert.equal(row.pointsEarned, null);
+  assert.equal(row.pointsPossible, 10);
 });
 
 test("class metadata and term grades align across header spans and preserve missing grades", async (t) => {
